@@ -1,0 +1,33 @@
+import { useState, useRef, useEffect } from 'react'; import { Button } from "@/components/ui/button"; import { initializeApp } from "firebase/app"; import { getStorage, ref, uploadString, listAll, getDownloadURL } from "firebase/storage";
+
+const firebaseConfig = { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID", storageBucket: "YOUR_STORAGE_BUCKET", messagingSenderId: "YOUR_MESSAGING_SENDER_ID", appId: "YOUR_APP_ID" };
+
+const app = initializeApp(firebaseConfig); const storage = getStorage(app);
+
+export default function DrawingApp() { const canvasRef = useRef(null); const [isDrawing, setIsDrawing] = useState(false); const [color, setColor] = useState("black"); const [lineWidth, setLineWidth] = useState(4); const [gallery, setGallery] = useState([]);
+
+useEffect(() => { const canvas = canvasRef.current; const context = canvas.getContext("2d"); canvas.width = window.innerWidth * 0.9; canvas.height = window.innerHeight * 0.6; context.lineJoin = "round"; context.lineCap = "round"; loadGallery(); }, []);
+
+const startDrawing = (e) => { const ctx = canvasRef.current.getContext("2d"); ctx.strokeStyle = color; ctx.lineWidth = lineWidth; ctx.beginPath(); ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); setIsDrawing(true); };
+
+const draw = (e) => { if (!isDrawing) return; const ctx = canvasRef.current.getContext("2d"); ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.stroke(); };
+
+const stopDrawing = () => { setIsDrawing(false); };
+
+const clearCanvas = () => { const ctx = canvasRef.current.getContext("2d"); ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height); };
+
+const postToGallery = async () => { const image = canvasRef.current.toDataURL("image/png"); const imageRef = ref(storage, gallery/${Date.now()}.png); await uploadString(imageRef, image, 'data_url'); const url = await getDownloadURL(imageRef); setGallery(prev => [url, ...prev]); clearCanvas(); };
+
+const loadGallery = async () => { const galleryRef = ref(storage, 'gallery/'); const res = await listAll(galleryRef); const urls = await Promise.all(res.items.map(item => getDownloadURL(item))); setGallery(urls.reverse()); };
+
+const downloadImage = () => { const image = canvasRef.current.toDataURL("image/png"); const link = document.createElement("a"); link.href = image; link.download = "drawing.png"; link.click(); };
+
+return ( 
+
+<input type="color" value={color} onChange={(e) => setColor(e.target.value)} /> <input type="range" min="1" max="20" value={lineWidth} onChange={(e) => setLineWidth(e.target.value)} /> <Button onClick={() => setColor("white")} className="bg-gray-300">ยางลบ ล้างกระดาน โพสต์รูป ดาวน์โหลด 
+
+แกลอรี่ 
+
+{gallery.map((img, idx) => ( <img key={idx} src={img} alt={drawing-${idx}} className="border rounded shadow" /> ))} 
+
+); } 
